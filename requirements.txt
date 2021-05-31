@@ -9,3 +9,4 @@ selenium
 pymongo
 pytube
 psycopg2-binary
+apache-airflow == 2.1.0

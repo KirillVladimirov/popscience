@@ -19,10 +19,14 @@ alembic downgrade 79ab43cbd198
 alembic downgrade -1
 
 
-2. Airflow
+2. Airflow 
+
 Обязательно установить переменную окружения AIRFLOW_HOME на дерикторию проекта
 export AIRFLOW_HOME=./
    
+Чтобы модули с функциями были доступны в airflow%
+export PYTHONPATH=./etl/:$PYTHONPATH
+
 Запуск сервисов Airflow
 airflow webserver
 airflow scheduler
@@ -41,5 +45,13 @@ with DAG(
 операторы описываются как BashOperator который просто запускает python скрипт
 
 Все скрипты находятся в ./etl/
+
+
+
+Информация:
+- [Apache Airflow: делаем ETL проще](https://habr.com/ru/post/512386/) большой туториал
+- [Data pipelines, Luigi, Airflow: everything you need to know](https://towardsdatascience.com/data-pipelines-luigi-airflow-everything-you-need-to-know-18dc741449b7) Сравнение airflow и Luigi
+- [Airflow: a workflow management platform](https://medium.com/airbnb-engineering/airflow-a-workflow-management-platform-46318b977fd8) обзор Airflow от разработчика Airbnb
+- [Getting started with Apache Airflow](https://towardsdatascience.com/getting-started-with-apache-airflow-df1aa77d7b1b)
 
 
