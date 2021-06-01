@@ -120,6 +120,7 @@ def get_video_info_from_playlists():
                 for i in range(10):
                     videos = session.query(YoutubeVideo).filter(YoutubeVideo.origin_url == url).all()
                     if len(videos) > 0:
+                        print("duplicate video:", url)
                         break
                     yt = YouTube(url)
                     video = YoutubeVideo()
@@ -146,6 +147,7 @@ def get_video_info_from_playlists():
                         video.captions_xml = caption.xml_captions
                     session.add(video)
                     session.commit()
+                    print("save video")
         except VideoPrivate:
             print(f"Private video {url}")
             break
