@@ -1,6 +1,11 @@
 import sqlalchemy
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy import Table, Column, Integer, String
 from sqlalchemy import ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, backref
+from sqlalchemy.ext.declarative import declarative_base
 
 
 convention = {
@@ -13,45 +18,21 @@ convention = {
 }
 
 metadata = sqlalchemy.MetaData(naming_convention=convention)
+Base = declarative_base(metadata=metadata)
+engine = create_engine("postgresql://postgres:@localhost:5432/university2035_etl", echo=True)
+Session = sessionmaker(bind=engine)
 
-youtube_channels = Table(
-    'youtube_channels',
-    metadata,
-    Column('id', Integer, primary_key=True),
-    Column('ulr', String, nullable=False, unique=True),
-)
 
-youtube_playlists = Table(
-    "youtube_playlists",
-    metadata,
-    Column('id', Integer, primary_key=True),
-    Column('channel_id', ForeignKey('youtube_channels.id'), nullable=False),
-    Column('youtube_playlist_id', String, nullable=False, unique=True),
-    Column('title', String),
-    Column('description', String),
-    Column('views', String),
-)
+class YoutubeChannel(Base):
+    __tablename__ = 'youtube_channels'
+    id = Column(Integer, primary_key=True)
+    url = Column(String, nullable=False, unique=True)
 
-youtube_videos = Table(
-    "youtube_videos",
-    metadata,
-    Column('id', Integer, primary_key=True),
-    Column('channel_id', ForeignKey('youtube_channels.id'), nullable=False),
-    Column('playlist_id', ForeignKey('youtube_playlists.id'), nullable=False),
-    Column('origin_url', String, nullable=False, unique=True),
-    Column('title', String),
-    Column('date', String),
-    Column('duration', String),
-    Column('author', String),
-    Column('tags', String),
-    Column('about', String),
-    Column('rating', String),
-    Column('platform', String),
-    Column('theme', String),
-    Column('language', String),
-    Column('captions_xml', String),
-)
 
+class YoutubePlaylist(Base):
+    __tablename__ = 'youtube_playlists'
+    id = Column(Integer, primary_key=True)
+    youtube_id = Column(String, nullable=False, unique=True)
 
 
 
