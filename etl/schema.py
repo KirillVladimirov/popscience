@@ -27,14 +27,57 @@ class YoutubeChannel(Base):
     __tablename__ = 'youtube_channels'
     id = Column(Integer, primary_key=True)
     url = Column(String, nullable=False, unique=True)
+    playlists = relationship("YoutubePlaylist", backref="channel")
 
 
 class YoutubePlaylist(Base):
     __tablename__ = 'youtube_playlists'
     id = Column(Integer, primary_key=True)
     youtube_id = Column(String, nullable=False, unique=True)
+    channel_id = Column(Integer, ForeignKey('youtube_channels.id'))
+    title = Column(String)
+    description = Column(String)
+    views = Column(String)
 
 
+class YoutubeVideo(Base):
+    __tablename__ = 'youtube_videos'
+    id = Column(Integer, primary_key=True)
+    channel_id = Column(Integer, ForeignKey('youtube_channels.id'))
+    playlist_id = Column(Integer, ForeignKey('youtube_playlists.id'))
+    origin_url = Column(String, nullable=False, unique=True)
+    title = Column(String)
+    date = Column(String)
+    duration = Column(String)
+    author = Column(String)
+    tags = Column(String)
+    about = Column(String)
+    rating = Column(String)
+    views = Column(String)
+    theme = Column(String)
+    language = Column(String)
+    captions_xml = Column(String)
 
+
+#
+# youtube_videos = Table(
+#     "youtube_videos",
+#     metadata,
+#     Column('id', Integer, primary_key=True),
+#     Column('channel_id', ForeignKey('youtube_channels.id'), nullable=False),
+#     Column('playlist_id', ForeignKey('youtube_playlists.id'), nullable=False),
+#     Column('origin_url', String, nullable=False, unique=True),
+#     Column('title', String),
+#     Column('date', String),
+#     Column('duration', String),
+#     Column('author', String),
+#     Column('tags', String),
+#     Column('about', String),
+#     Column('rating', String),
+#     Column('platform', String),
+#     Column('theme', String),
+#     Column('language', String),
+#     Column('captions_xml', String),
+# )
 
 
