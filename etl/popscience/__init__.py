@@ -2,25 +2,18 @@ from sqlalchemy.dialects.postgresql import insert
 from etl.schema import engine
 from etl.schema import YoutubeChannel
 from etl.schema import YoutubePlaylist
+from etl.schema import YoutubeVideo
 from etl.schema import Session
-
-from tqdm import tqdm
 
 from pytube import YouTube
 from pytube import Playlist
+from selenium import webdriver
 from pytube.exceptions import VideoPrivate
 from pytube.exceptions import VideoUnavailable
+from urllib.error import URLError
 
 import time
 import traceback
-
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import InvalidArgumentException
-
-from urllib.error import URLError
 
 
 def update_channel_list():
@@ -44,11 +37,8 @@ def update_channel_list():
 def update_playlist_list():
     session = Session()
     channels = session.query(YoutubeChannel).all()
-    print(len(channels), channels[0].url)
 
-    playlist_ids = []
-
-    for channel in tqdm(channels[:5]):
+    for channel in channels[:5]:
         driver = webdriver.Chrome('./chromedriver')
         driver.get(channel.url+"/playlists?view=1&sort=dd&shelf_id=0")
         time.sleep(5)
@@ -68,217 +58,110 @@ def update_playlist_list():
         for i in user_data:
             url = i.get_attribute('href')
             playlist_id = url.split("=")[-1]
-            playlist_ids.append(playlist_id)
             with engine.connect() as conn:
-                stmt = insert(YoutubePlaylist).values(youtube_id=playlist_id).on_conflict_do_nothing()
+                stmt = insert(YoutubePlaylist) \
+                    .values(youtube_id=playlist_id, channel_id=channel.id).on_conflict_do_nothing()
                 conn.execute(stmt)
 
         driver.close()
         driver.quit()
+    session.commit()
 
-    # sleep = 3
-    # URLError_counter = 0
-    # engine = create_engine("postgresql://postgres:@localhost:5432/university2035_etl", echo=True)
-    #
-    # for playlist_id in tqdm(channels):
-    #     try:
-    #         playlist = f"https://www.youtube.com/playlist?list={playlist_id}"
-    #
-    #         # Получение информации о плейлисте
-    #         driver = webdriver.Chrome('../chromedriver')
-    #         driver.get(playlist)
-    #         time.sleep(sleep)
-    #         user_data = driver.find_elements_by_xpath('//*[@id="description"]')
-    #         pl_description = user_data[0].text
-    #         user_data = driver.find_elements_by_xpath("//*[contains(text(), 'views')]")
-    #         pl_views = user_data[1].text
-    #         digits = [s for s in pl_views.split()[0] if s.isdigit()]
-    #         if len(digits) == 0:
-    #             pl_views = 0
-    #         else:
-    #             pl_views = int("".join(digits))
-    #         driver.close()
-    #         #         driver.quit()
-    #         p = Playlist(playlist)
-    #         pl_title = p.title
-    #
-    #         for url in p.video_urls:
-    #             for i in range(10):
-    #                 try:
-    #                     # jon_tutorial = collection.find_one({"origin_url": url})
-    #                     # if jon_tutorial is not None:
-    #                     #     break
-    #
-    #                     info = {}
-    #                     try:
-    #                         yt = YouTube(url)
-    #                     except VideoPrivate:
-    #                         print(f"Private video {url}")
-    #                         break
-    #                     except VideoUnavailable:
-    #                         print(f"Unavailable video {url}")
-    #                         break
-    #                     info["title"] = yt.title
-    #                     info["playlist_title"] = pl_title
-    #                     info["playlist_description"] = pl_description
-    #                     info["playlist_views"] = pl_views
-    #                     info["date"] = yt.publish_date
-    #                     info["origin_url"] = url
-    #                     info["views"] = yt.views
-    #                     info["duation"] = yt.length
-    #                     info["author"] = yt.author
-    #                     info["tags"] = yt.keywords
-    #                     info["about"] = yt.description
-    #                     info["rating"] = yt.rating
-    #                     info["platform"] = "YouTube"
-    #                     info["theme"] = yt.thumbnail_url
-    #                     if yt.captions.get("ru") is not None:
-    #                         caption = yt.captions.get('ru')
-    #                         info["language"] = "ru"
-    #                     elif yt.captions.get("a.ru") is not None:
-    #                         caption = yt.captions.get('a.ru')
-    #                         info["language"] = "a.ru"
-    #                     if caption:
-    #                         info["captions_xml"] = caption.xml_captions
-    #                         info["captions_str"] = caption.generate_srt_captions()
-    #                     result = collection.insert_one(info)
-    #                 except DuplicateKeyError:
-    #                     print("============ DuplicateKeyError ============")
-    #                     #                     traceback.print_exc()
-    #                     continue
-    #                 except URLError:
-    #                     print("============ URLError ============")
-    #                     traceback.print_exc()
-    #                     URLError_counter += 1
-    #                     if URLError_counter == 20:
-    #                         URLError_counter = 0
-    #                         break
-    #                     time.sleep(sleep)
-    #                     continue
-    #                 except KeyError:
-    #                     print("============ KeyError ============")
-    #                     break
-    #                 else:
-    #                     break
-    #     except KeyboardInterrupt:
-    #         print("============ KeyboardInterrupt ============")
-    #         break
-    #     except:
-    #         print("============ UnnounError ============")
-    #         traceback.print_exc()
-    #         continue
+
+def get_playlist_info():
+    session = Session()
+    playlists = session.query(YoutubePlaylist).all()
+    print(playlists[0].youtube_id)
+    print(playlists[0].channel_id)
+    sleep = 3
+
+    for playlist in playlists:
+        playlist_url = f"https://www.youtube.com/playlist?list={playlist.youtube_id}"
+        print(playlist_url)
+        # Получение информации о плейлисте
+        driver = webdriver.Chrome('./chromedriver')
+        driver.get(playlist_url)
+        time.sleep(sleep)
+        user_data = driver.find_elements_by_xpath('//*[@id="description"]')
+        pl_description = user_data[0].text
+        user_data = driver.find_elements_by_xpath("//*[contains(text(), 'views')]")
+        pl_views = user_data[1].text
+        print("pl_description", pl_description)
+        print("pl_views", pl_views)
+
+        digits = [s for s in pl_views.split()[0] if s.isdigit()]
+        if len(digits) == 0:
+            pl_views = 0
+        else:
+            pl_views = int("".join(digits))
+        driver.close()
+        p = Playlist(playlist_url)
+        pl_title = p.title
+        print("pl_title", pl_title)
+        playlist.title = pl_title
+        playlist.description = pl_description
+        playlist.views = pl_views
+        session.commit()
 
 
 def get_video_info_from_playlists():
-    print("RUN get_video_info_from_playlists")
-    # channels = youtube_channels.query.all()
-    # sleep = 3
-    # URLError_counter = 0
-    # engine = create_engine("postgresql://postgres:@localhost:5432/university2035_etl", echo=True)
-    #
-    # for playlist_id in tqdm(channels):
-    #     try:
-    #         playlist = f"https://www.youtube.com/playlist?list={playlist_id}"
-    #
-    #         # Получение информации о плейлисте
-    #         driver = webdriver.Chrome('../chromedriver')
-    #         driver.get(playlist)
-    #         time.sleep(sleep)
-    #         user_data = driver.find_elements_by_xpath('//*[@id="description"]')
-    #         pl_description = user_data[0].text
-    #         user_data = driver.find_elements_by_xpath("//*[contains(text(), 'views')]")
-    #         pl_views = user_data[1].text
-    #         digits = [s for s in pl_views.split()[0] if s.isdigit()]
-    #         if len(digits) == 0:
-    #             pl_views = 0
-    #         else:
-    #             pl_views = int("".join(digits))
-    #         driver.close()
-    #         #         driver.quit()
-    #         p = Playlist(playlist)
-    #         pl_title = p.title
-    #
-    #         for url in p.video_urls:
-    #             for i in range(10):
-    #                 try:
-    #                     # jon_tutorial = collection.find_one({"origin_url": url})
-    #                     # if jon_tutorial is not None:
-    #                     #     break
-    #
-    #                     info = {}
-    #                     try:
-    #                         yt = YouTube(url)
-    #                     except VideoPrivate:
-    #                         print(f"Private video {url}")
-    #                         break
-    #                     except VideoUnavailable:
-    #                         print(f"Unavailable video {url}")
-    #                         break
-    #                     info["title"] = yt.title
-    #                     info["playlist_title"] = pl_title
-    #                     info["playlist_description"] = pl_description
-    #                     info["playlist_views"] = pl_views
-    #                     info["date"] = yt.publish_date
-    #                     info["origin_url"] = url
-    #                     info["views"] = yt.views
-    #                     info["duation"] = yt.length
-    #                     info["author"] = yt.author
-    #                     info["tags"] = yt.keywords
-    #                     info["about"] = yt.description
-    #                     info["rating"] = yt.rating
-    #                     info["platform"] = "YouTube"
-    #                     info["theme"] = yt.thumbnail_url
-    #                     if yt.captions.get("ru") is not None:
-    #                         caption = yt.captions.get('ru')
-    #                         info["language"] = "ru"
-    #                     elif yt.captions.get("a.ru") is not None:
-    #                         caption = yt.captions.get('a.ru')
-    #                         info["language"] = "a.ru"
-    #                     if caption:
-    #                         info["captions_xml"] = caption.xml_captions
-    #                         info["captions_str"] = caption.generate_srt_captions()
-    #                     result = collection.insert_one(info)
-    #                 except DuplicateKeyError:
-    #                     print("============ DuplicateKeyError ============")
-    #                     #                     traceback.print_exc()
-    #                     continue
-    #                 except URLError:
-    #                     print("============ URLError ============")
-    #                     traceback.print_exc()
-    #                     URLError_counter += 1
-    #                     if URLError_counter == 20:
-    #                         URLError_counter = 0
-    #                         break
-    #                     time.sleep(sleep)
-    #                     continue
-    #                 except KeyError:
-    #                     print("============ KeyError ============")
-    #                     break
-    #                 else:
-    #                     break
-    #     except KeyboardInterrupt:
-    #         print("============ KeyboardInterrupt ============")
-    #         break
-    #     except:
-    #         print("============ UnnounError ============")
-    #         traceback.print_exc()
-    #         continue
+    session = Session()
+    playlists = session.query(YoutubePlaylist).all()
+    sleep = 3
+    URLError_counter = 0
+    print("PLAYLIST COUNT:", len(playlists))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    for playlist in playlists:
+        try:
+            playlist_url = f"https://www.youtube.com/playlist?list={playlist.youtube_id}"
+            p = Playlist(playlist_url)
+            print("VIDEOS COUNT:", len(p.video_urls))
+            for url in p.video_urls:
+                for i in range(10):
+                    videos = session.query(YoutubeVideo).filter(YoutubeVideo.origin_url == url).all()
+                    if len(videos) > 0:
+                        break
+                    yt = YouTube(url)
+                    video = YoutubeVideo()
+                    video.channel_id = playlist.channel_id
+                    video.playlist_id = playlist.id
+                    video.origin_url = url
+                    video.title = yt.title
+                    video.date = yt.publish_date
+                    video.duration = yt.length
+                    video.author = yt.author
+                    video.tags = yt.keywords
+                    video.about = yt.description
+                    video.rating = yt.rating
+                    video.views = yt.views
+                    video.theme = yt.thumbnail_url
+                    caption = None
+                    if yt.captions.get("ru") is not None:
+                        caption = yt.captions.get('ru')
+                        video.language = "ru"
+                    elif yt.captions.get("a.ru") is not None:
+                        caption = yt.captions.get('a.ru')
+                        video.language = "a.ru"
+                    if caption:
+                        video.captions_xml = caption.xml_captions
+                    session.add(video)
+                    session.commit()
+        except VideoPrivate:
+            print(f"Private video {url}")
+            break
+        except VideoUnavailable:
+            print(f"Unavailable video {url}")
+            break
+        except URLError:
+            print("============ URLError ============")
+            traceback.print_exc()
+            URLError_counter += 1
+            if URLError_counter == 20:
+                URLError_counter = 0
+                break
+            time.sleep(sleep)
+            continue
+        except:
+            print("============ UnnounError ============")
+            traceback.print_exc()
+            continue
